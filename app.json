@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Speed Reading Glimpse",
-    "slug": "speed-reading-glimpse-task",
+    "name": "Reading Retention",
+    "slug": "reading-retention",
     "privacy": "public",
     "sdkVersion": "36.0.0",
     "platforms": ["ios", "android", "web"],

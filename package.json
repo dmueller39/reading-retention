@@ -1,6 +1,6 @@
 {
   "main": "node_modules/expo/AppEntry.js",
-  "homepage": "http://dmueller39.github.io/speed-reading-glimpse",
+  "homepage": "http://dmueller39.github.io/reading-retention",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",

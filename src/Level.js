@@ -1,5 +1,5 @@
 // @flow
-import * as React from "react";
+import React, { useEffect, useState, useRef } from "react";
 
 import {
   Button,
@@ -10,224 +10,246 @@ import {
   View,
   Platform,
   TextInput,
+  Animated,
 } from "react-native";
 import WebKeyboardListener from "./common/WebKeyboardListener";
 
 import type {
-  SpeedReadingGlimpseGame,
-  SpeedReadingGlimpseGameResult,
+  ReadingRetentionGame,
+  GameResult,
+  ReadingRetentionCheck,
 } from "./types";
 import LabelButton from "./common/LabelButton";
 import Container from "./common/Container";
 
 export type Props = {|
-  onComplete: (SpeedReadingGlimpseGameResult) => void,
-  game: SpeedReadingGlimpseGame,
+  onComplete: (GameResult) => void,
+  game: ReadingRetentionGame,
 |};
 
-const PRE_GLIMPSE_SCREEN_TYPE = 1;
-const GLIMPSE_SCREEN_TYPE = 2;
-const POST_GLIMPSE_SCREEN_TYPE = 3;
-const ENTRY_SCREEN_TYPE = 4;
-const ANSWER_SCREEN_TYPE = 5;
+// user should be reading
+const READING_SCREEN_TYPE = 1;
+// user provides an answer
+const ENTRY_SCREEN_TYPE = 2;
+// user sees whether the answer was correct
+const ANSWER_SCREEN_TYPE = 3;
 
-type ScreenType = 0 | 1 | 2 | 3 | 4 | 5;
+type ScreenType = 0 | 1 | 2 | 3;
 
 type State = {
-  currentIndex: number,
-  mistakes: number,
+  index: number,
   screenType: ScreenType,
-  isCorrect: boolean,
-  answerText: string,
+  selection: ?string,
+  check: ?ReadingRetentionCheck,
 };
 
-export default class Menu extends React.Component<Props, State> {
-  state = {
-    currentIndex: 0,
-    mistakes: 0,
-    screenType: PRE_GLIMPSE_SCREEN_TYPE,
-    isCorrect: false,
-    answerText: "",
-  };
+const FRAME_DURATION = 100;
 
-  _timeoutID: ?TimeoutID;
-  _didHandleAnswer: boolean = false;
+function Obfuscator({ obfuscate }: { obfuscate: boolean }) {
+  const opacity = useRef(new Animated.Value(obfuscate ? 1 : 0)).current;
 
-  componentDidMount() {
-    this._timeoutID = setTimeout(this._onPreGlimpseTimeout, 1000);
-  }
-
-  _onPreGlimpseTimeout = () => {
-    this.setState({
-      screenType: GLIMPSE_SCREEN_TYPE,
-    });
-    this._timeoutID = setTimeout(this._onGlimpseTimeout, 200);
-  };
-
-  _onGlimpseTimeout = () => {
-    this.setState({
-      screenType: POST_GLIMPSE_SCREEN_TYPE,
-    });
-    this._timeoutID = setTimeout(this._onPostGlimpseTimeout, 1000);
-  };
-
-  _onPostGlimpseTimeout = () => {
-    this._didHandleAnswer = false;
-    this.setState({
-      screenType: ENTRY_SCREEN_TYPE,
-    });
-  };
-
-  confirmAnswer = () => {
-    // handle race conditions that setState can't help with
-    if (!this._didHandleAnswer) {
-      this._didHandleAnswer = true;
-      const isCorrect =
-        this.state.answerText.toLowerCase() ===
-        this.props.game.turns[this.state.currentIndex].toLowerCase();
-      const mistakes = this.state.mistakes + (isCorrect ? 0 : 1);
-      this.setState({
-        mistakes,
-        screenType: ANSWER_SCREEN_TYPE,
-        isCorrect,
-      });
-
-      this._timeoutID = setTimeout(this._onAnswerTimeout, 500);
-    }
-  };
-
-  _onAnswerTimeout = () => {
-    this.continueGame();
-  };
-
-  _onChangeAnswerText = (answerText: string) => {
-    this.setState({ answerText });
-  };
-
-  _onKeyPress = ({
-    nativeEvent: { key },
-  }: {
-    nativeEvent: { key: string },
-  }) => {
-    if (key == "Enter") {
-      this.confirmAnswer();
-    }
-  };
-
-  _onBlur = () => {
-    if (
-      this.state.answerText.length > 0 &&
-      // we also blur when we hit enter
-      this.state.screenType == ENTRY_SCREEN_TYPE
-    ) {
-      this.confirmAnswer();
-    }
-  };
-
-  continueGame = () => {
-    const currentIndex = this.state.currentIndex + 1;
-    const mistakes = this.state.mistakes;
-    if (currentIndex >= this.props.game.turns.length) {
-      this.props.onComplete({
-        mistakes,
-        length: this.props.game.turns.length,
-      });
+  useEffect(() => {
+    if (obfuscate) {
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 2000,
+      }).start();
     } else {
-      this.setState({
-        answerText: "",
-        currentIndex,
-        isCorrect: false,
-        screenType: PRE_GLIMPSE_SCREEN_TYPE,
-      });
-      this._timeoutID = setTimeout(this._onPreGlimpseTimeout, 1000);
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 2000,
+      }).start();
+    }
+  }, [obfuscate]);
+  return <Animated.View style={[styles.obfuscator, { opacity }]} />;
+}
+
+function Highlight({ enabled }: { enabled: boolean }) {
+  return <View style={[styles.highlight, { opacity: enabled ? 1 : 0 }]} />;
+}
+
+type OptionTextState = 0 | 1 | 2;
+const OPTION_TEXT_STATE_DEFAULT = 0;
+const OPTION_TEXT_STATE_INCORRECT = 1;
+const OPTION_TEXT_STATE_CORRECT = 2;
+
+function OptionText({
+  word,
+  onPress,
+  state,
+}: {
+  onPress?: (string) => void,
+  state: OptionTextState,
+  word: string,
+}) {
+  // TODO work on feedback
+  // make the highlight color match the answer color
+  // fix showing the answer
+  // advance to another segment (requires medium refactor)
+  // commit and push to github
+  const getStateStyle = (state: OptionTextState) => {
+    switch (state) {
+      case OPTION_TEXT_STATE_INCORRECT:
+        return { color: "red" };
+      case OPTION_TEXT_STATE_CORRECT:
+        return { color: "green" };
+      default:
+      case OPTION_TEXT_STATE_DEFAULT:
+        return null;
+    }
+  };
+  return (
+    <Text
+      onPress={() => onPress != null && onPress(word)}
+      style={[styles.option, getStateStyle(state)]}
+    >
+      {word}
+    </Text>
+  );
+}
+
+export default class Level extends React.Component<Props, State> {
+  state = {
+    index: 0,
+    screenType: READING_SCREEN_TYPE,
+    selection: null,
+    check: null,
+  };
+
+  _startTimestamp = Date.now();
+  _startIndex = 0;
+  _intervalId: ?IntervalID = null;
+
+  componentDidMount = () => {
+    // figure out how to handle unmounting
+    this._intervalId = setInterval(this._onInterval, 10);
+  };
+
+  _onInterval = () => {
+    if (this.state.screenType == READING_SCREEN_TYPE) {
+      // decouples the animation speed from update duration
+      const index =
+        (Date.now() - this._startTimestamp) / this.props.game.frameDuration +
+        this._startIndex;
+      // check if the index has been passed in the checks array
+
+      if (
+        index >=
+        this.props.game.words.length + this.props.game.visibleHalfLength
+      ) {
+        const check = this.props.game.checks[0];
+        this.setState({
+          check,
+          screenType: ENTRY_SCREEN_TYPE,
+        });
+        clearInterval(this._intervalId);
+        this._intervalId = null;
+      } else {
+        // TODO pull the animation index out of the state entirely
+        this.setState({
+          index,
+        });
+      }
     }
   };
 
-  _renderIcon = () => {
-    if (this.state.screenType != ANSWER_SCREEN_TYPE) {
+  _onPressOption = (selection: string) => {
+    this.setState({ selection, screenType: ANSWER_SCREEN_TYPE });
+  };
+
+  renderOptionView() {
+    const check = this.state.check;
+    if (check == null) {
       return null;
     }
-    if (this.state.isCorrect) {
-      return <Text style={styles.answerText}>✅</Text>;
+    switch (this.state.screenType) {
+      case ENTRY_SCREEN_TYPE: {
+        const optionViews = check.options.map((word, index) => (
+          <OptionText
+            state={OPTION_TEXT_STATE_DEFAULT}
+            key={word}
+            word={word}
+            onPress={this._onPressOption}
+          />
+        ));
+        return <View style={styles.optionContainer}>{optionViews}</View>;
+      }
+      case ANSWER_SCREEN_TYPE: {
+        const getState = (word: string) => {
+          if (word == this.state.selection && word == check.word) {
+            return OPTION_TEXT_STATE_CORRECT;
+          } else if (word == this.state.selection && word != check.word) {
+            return OPTION_TEXT_STATE_INCORRECT;
+          } else {
+            return OPTION_TEXT_STATE_DEFAULT;
+          }
+        };
+        const optionViews = check.options.map((word, index) => (
+          <OptionText key={word} word={word} state={getState(word)} />
+        ));
+        return <View style={styles.optionContainer}>{optionViews}</View>;
+      }
+
+      default:
+      case READING_SCREEN_TYPE:
+        return null;
     }
-    return <Text style={styles.answerText}>🚫</Text>;
-  };
+  }
 
   render() {
-    const answerIcon = this._renderIcon();
-    switch (this.state.screenType) {
-      case 1:
-        return <Container></Container>;
-      case 2:
-        return (
-          <Container>
-            <Text style={styles.word}>
-              {this.props.game.turns[this.state.currentIndex]}
-            </Text>
-          </Container>
-        );
-      case 3:
-        return <Container></Container>;
-      case 4:
-        return (
-          <Container>
-            <View style={styles.answerContainer}>
-              <TextInput
-                autoFocus={true}
-                autoCapitalize="none"
-                onChangeText={this._onChangeAnswerText}
-                onKeyPress={this._onKeyPress}
-                style={styles.textInput}
-                onBlur={this._onBlur}
-              />
-            </View>
-          </Container>
-        );
-      case 5:
-        return (
-          <Container>
-            <View style={styles.answerContainer}>{this._renderIcon()}</View>
-          </Container>
-        );
-      default:
-        return <Container></Container>;
-    }
+    const check = this.state.check;
+    const texts = this.props.game.words.map((word, i) => {
+      const obfuscate =
+        i < this.state.index - this.props.game.visibleHalfLength;
+      return (
+        <View key={i} style={styles.textContainer}>
+          <Text style={styles.word}>{word}</Text>
+          <Obfuscator obfuscate={obfuscate} />
+          <Highlight enabled={check != null && i == check.index} />
+        </View>
+      );
+    });
+    const optionView = this.renderOptionView();
+    return (
+      <Container>
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>{texts}</View>
+        {optionView}
+      </Container>
+    );
   }
 }
 
 const styles = StyleSheet.create({
   word: {
-    width: "100%",
-    textAlign: "center",
-    fontSize: 40,
-    marginTop: 40,
-    marginBottom: 40,
+    fontSize: 24,
+    marginRight: 4, // terrible hack :P
   },
-  hContainer: {
+  textContainer: {
+    margin: 1,
+  },
+  optionContainer: {
     flexDirection: "row",
-    padding: 8,
-    margin: "auto",
-    width: "100%",
-    justifyContent: "center",
   },
-  inputContainer: {
-    alignItems: "center",
+  option: {
+    margin: 5,
+    fontSize: 26,
+    fontWeight: "bold",
   },
-  answerContainer: {
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+  obfuscator: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#CCCCCC",
   },
-  answerText: {
-    marginTop: 40,
-    marginBottom: 40,
-    fontSize: 40,
-  },
-  textInput: {
-    marginTop: 40,
-    marginBottom: 40,
-    fontSize: 40,
-    backgroundColor: "white",
-    textAlign: "center",
+  highlight: {
+    position: "absolute",
+    top: 5,
+    bottom: 5,
+    left: 5,
+    right: 5,
+    backgroundColor: "#00CC00",
+    boxShadow: "0 0 5px #00CC00",
   },
 });
