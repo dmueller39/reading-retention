@@ -6,15 +6,18 @@ export type ReadingRetentionCheck = {
   options: Array<string>,
 };
 
-export type ReadingRetentionGame = {
-  words: Array<string>,
-  // blob of text
+export type ReadingRetentionSnippet = {
+  // should these be constant per game?
   frameDuration: number,
-  checks: Array<ReadingRetentionCheck>,
   visibleHalfLength: number,
+  words: Array<string>,
+  check: ReadingRetentionCheck,
+};
+
+export type ReadingRetentionGame = {
+  snippets: Array<ReadingRetentionSnippet>,
 };
 
 export type GameResult = {
   mistakes: number,
-  speed: number,
 };

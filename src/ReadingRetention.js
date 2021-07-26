@@ -8,8 +8,20 @@ import Menu from "./Menu";
 
 const OPTIONS = [
   {
-    name: "Play",
-    getGamePlan: () => getReadingRetentionPlan(),
+    name: "100 WPM",
+    getGamePlan: () => getReadingRetentionPlan(100),
+  },
+  {
+    name: "150 WPM",
+    getGamePlan: () => getReadingRetentionPlan(150),
+  },
+  {
+    name: "200 WPM",
+    getGamePlan: () => getReadingRetentionPlan(200),
+  },
+  {
+    name: "300 WPM",
+    getGamePlan: () => getReadingRetentionPlan(300),
   },
 ];
 
