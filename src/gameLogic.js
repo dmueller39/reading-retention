@@ -21,6 +21,7 @@ export default function shuffle<T>(array: Array<T>): Array<T> {
   return array;
 }
 
+// TODO make this dynamic
 const INPUT_DATA = [
   "It might not seem there's much to learn about how to work hard. Anyone who's been to school knows what it entails, even if they chose not to. There are 12 year olds who work amazingly hard. And yet when I ask if I know more about working hard now than when I was in school, the answer is definitely yes.",
   "One thing I know is that if you want to do great things, you'll have to work very hard. I wasn't sure of that as a kid. Schoolwork varied in difficulty; one didn't always have to work super hard to do well. And some of the things famous adults did, they seemed to do almost effortlessly. Was there, perhaps, some way to evade hard work through sheer brilliance? Now I know the answer to that question. There isn't.",
@@ -61,11 +62,9 @@ function getOptions(index: number, words: Array<string>): Array<string> {
 // a subset of the strings should be revealed to the player over time, with
 // trailing words being obscured. The player will be quizzed on the words they
 // saw previously
-//
-// TODO: We are using lorem ipsum for now, but we will want real text in the future
+
 export function getReadingRetentionSnippet(
-  snippetString: string,
-  frameDuration: number
+  snippetString: string
 ): ReadingRetentionSnippet {
   const words: Array<string> = snippetString.split(" ");
   const checkWords: Array<string> = getUsableWords(words);
@@ -86,15 +85,12 @@ export function getReadingRetentionSnippet(
     visibleHalfLength: 20,
     words,
     check,
-    frameDuration,
+    frameDuration: 200,
   };
 }
 
-export function getReadingRetentionPlan(wpm: number): ReadingRetentionGame {
-  const frameDuration = (60 * 1000) / wpm;
-  const snippets = INPUT_DATA.map((text) =>
-    getReadingRetentionSnippet(text, frameDuration)
-  );
+export function getReadingRetentionPlan(): ReadingRetentionGame {
+  const snippets = INPUT_DATA.map(getReadingRetentionSnippet);
 
   return {
     snippets,

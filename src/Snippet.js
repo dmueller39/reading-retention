@@ -29,18 +29,14 @@ export type Props = {|
 
 // user should be reading
 const READING_SCREEN_TYPE = 1;
+// text is transition from visible to not visible
+const ENTRY_TRANSITION_SCREEN_TYPE = 2;
 // user provides an answer
-const ENTRY_SCREEN_TYPE = 2;
+const ENTRY_SCREEN_TYPE = 3;
 // user sees whether the answer was correct
-const ANSWER_SCREEN_TYPE = 3;
+const ANSWER_SCREEN_TYPE = 4;
 
-type ScreenType = 0 | 1 | 2 | 3;
-
-type State = {
-  index: number,
-  screenType: ScreenType,
-  selection: ?string,
-};
+type ScreenType = 1 | 2 | 3 | 4;
 
 const FRAME_DURATION = 100;
 
@@ -122,146 +118,155 @@ function OptionText({
   );
 }
 
-export default class Level extends React.Component<Props, State> {
-  state = {
-    index: 0,
-    screenType: READING_SCREEN_TYPE,
-    selection: null,
-  };
-
-  _startTimestamp = Date.now();
-  _startIndex = 0;
-  _intervalId: ?IntervalID = null;
-  _timeoutId: ?TimeoutID = null;
-
-  componentDidMount = () => {
-    this._intervalId = setInterval(this._onInterval, 10);
-  };
-
-  componentDidUpdate(prevProps: Props) {
-    if (prevProps.snippet != this.props.snippet) {
-      this.setState({
-        index: 0,
-        screenType: READING_SCREEN_TYPE,
-        selection: null,
-      });
-      this._startTimestamp = Date.now();
-      this._startIndex = 0;
-      this._intervalId = setInterval(this._onInterval, 10);
-    }
+function ReadyView({
+  screenType,
+  onPressReady,
+}: {
+  screenType: ScreenType,
+  onPressReady: () => void,
+}) {
+  switch (screenType) {
+    case READING_SCREEN_TYPE:
+      return (
+        <LabelButton
+          label="ready"
+          type="positive"
+          onPress={onPressReady}
+          style={styles.ready}
+        />
+      );
+    default:
+    case ENTRY_SCREEN_TYPE:
+    case ANSWER_SCREEN_TYPE:
+      return null;
   }
+}
 
-  componentWillUnmount() {
-    if (this._intervalId != null) {
-      clearInterval(this._intervalId);
-      this._intervalId = null;
-    }
-    if (this._timeoutId != null) {
-      clearTimeout(this._timeoutId);
-      this._timeoutId = null;
-    }
+function OptionView({
+  snippet,
+  screenType,
+  selection,
+  onPressOption,
+}: {
+  snippet: ReadingRetentionSnippet,
+  screenType: ScreenType,
+  selection: ?string,
+  onPressOption: (string) => void,
+}) {
+  const check = snippet.check;
+  if (check == null) {
+    return null;
   }
+  switch (screenType) {
+    case ENTRY_SCREEN_TYPE: {
+      const optionViews = check.options.map((word, index) => (
+        <OptionText
+          state={OPTION_TEXT_STATE_DEFAULT}
+          key={word}
+          word={word}
+          onPress={onPressOption}
+        />
+      ));
+      return <View style={styles.optionContainer}>{optionViews}</View>;
+    }
+    case ANSWER_SCREEN_TYPE: {
+      const getState = (word: string) => {
+        if (word == selection && word == check.word) {
+          return OPTION_TEXT_STATE_CORRECT;
+        } else if (word == selection && word != check.word) {
+          return OPTION_TEXT_STATE_INCORRECT;
+        } else {
+          return OPTION_TEXT_STATE_DEFAULT;
+        }
+      };
+      const optionViews = check.options.map((word, index) => (
+        <OptionText key={word} word={word} state={getState(word)} />
+      ));
+      return <View style={styles.optionContainer}>{optionViews}</View>;
+    }
 
-  _onInterval = () => {
-    if (this.state.screenType == READING_SCREEN_TYPE) {
-      // decouples the animation speed from update duration
-      const index =
-        (Date.now() - this._startTimestamp) / this.props.snippet.frameDuration +
-        this._startIndex;
-      // check if the index has been passed in the checks array
+    default:
+    case READING_SCREEN_TYPE:
+      return null;
+  }
+}
 
-      if (
-        index >=
-        this.props.snippet.words.length + this.props.snippet.visibleHalfLength
-      ) {
-        const check = this.props.snippet.check;
-        this.setState({
-          screenType: ENTRY_SCREEN_TYPE,
-        });
-        clearInterval(this._intervalId);
-        this._intervalId = null;
-      } else {
-        // TODO pull the animation index out of the state entirely
-        this.setState({
-          index,
-        });
+export default function Level(props: Props) {
+  const [screenType, setScreenType] = useState(
+    (READING_SCREEN_TYPE: ScreenType)
+  );
+  const [selection, setSelection] = useState((null: ?string));
+  const [highlightIndex, setHighlightIndex] = useState((null: ?number));
+
+  const timeoutRef = useRef((null: ?TimeoutID));
+
+  useEffect(() => {
+    setScreenType(READING_SCREEN_TYPE);
+    setSelection(null);
+    setHighlightIndex(null);
+    return () => {
+      if (timeoutRef.current != null) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
-    }
+    };
+  }, [props.snippet]);
+
+  const onTimeout = () => {
+    props.onComplete(selection == props.snippet.check.word);
   };
 
-  _onPressOption = (selection: string) => {
-    this.setState({ selection, screenType: ANSWER_SCREEN_TYPE });
-    this._timeoutId = setTimeout(() => {
-      this.props.onComplete(selection == this.props.snippet.check.word);
+  const onPressOption = (selection: string) => {
+    setSelection(selection);
+    setScreenType(ANSWER_SCREEN_TYPE);
+    timeoutRef.current = setTimeout(() => {
+      props.onComplete(selection == props.snippet.check.word);
     }, 2000);
   };
 
-  renderOptionView() {
-    const check = this.props.snippet.check;
-    if (check == null) {
-      return null;
-    }
-    switch (this.state.screenType) {
-      case ENTRY_SCREEN_TYPE: {
-        const optionViews = check.options.map((word, index) => (
-          <OptionText
-            state={OPTION_TEXT_STATE_DEFAULT}
-            key={word}
-            word={word}
-            onPress={this._onPressOption}
-          />
-        ));
-        return <View style={styles.optionContainer}>{optionViews}</View>;
-      }
-      case ANSWER_SCREEN_TYPE: {
-        const getState = (word: string) => {
-          if (word == this.state.selection && word == check.word) {
-            return OPTION_TEXT_STATE_CORRECT;
-          } else if (word == this.state.selection && word != check.word) {
-            return OPTION_TEXT_STATE_INCORRECT;
-          } else {
-            return OPTION_TEXT_STATE_DEFAULT;
+  const onPressReady = () => {
+    timeoutRef.current = setTimeout(() => {
+      setScreenType(ENTRY_SCREEN_TYPE);
+    }, 2000);
+    setHighlightIndex(props.snippet.check.index);
+    setScreenType(ENTRY_TRANSITION_SCREEN_TYPE);
+  };
+
+  const check = props.snippet.check;
+  const texts = props.snippet.words.map((word, i) => {
+    const highlight =
+      check.index == highlightIndex && i == check.index ? (
+        <Highlight
+          enabled={
+            screenType == ENTRY_SCREEN_TYPE || screenType == ANSWER_SCREEN_TYPE
           }
-        };
-        const optionViews = check.options.map((word, index) => (
-          <OptionText key={word} word={word} state={getState(word)} />
-        ));
-        return <View style={styles.optionContainer}>{optionViews}</View>;
-      }
-
-      default:
-      case READING_SCREEN_TYPE:
-        return null;
-    }
-  }
-
-  render() {
-    const { screenType } = this.state;
-    const check = this.props.snippet.check;
-    const texts = this.props.snippet.words.map((word, i) => {
-      const obfuscate =
-        screenType != ANSWER_SCREEN_TYPE &&
-        i < this.state.index - this.props.snippet.visibleHalfLength;
-      const highlight =
-        i == check.index ? (
-          <Highlight enabled={screenType != READING_SCREEN_TYPE} />
-        ) : null;
-      return (
-        <View key={i} style={styles.textContainer}>
-          <Text style={styles.word}>{word}</Text>
-          <Obfuscator obfuscate={obfuscate} />
-          {highlight}
-        </View>
-      );
-    });
-    const optionView = this.renderOptionView();
+        />
+      ) : null;
     return (
-      <Container>
-        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>{texts}</View>
-        {optionView}
-      </Container>
+      <View key={i} style={styles.textContainer}>
+        <Text style={styles.word}>{word}</Text>
+        <Obfuscator
+          obfuscate={
+            screenType == ENTRY_SCREEN_TYPE ||
+            screenType == ENTRY_TRANSITION_SCREEN_TYPE
+          }
+        />
+        {highlight}
+      </View>
     );
-  }
+  });
+  return (
+    <Container>
+      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>{texts}</View>
+      <OptionView
+        snippet={props.snippet}
+        screenType={screenType}
+        onPressOption={onPressOption}
+        selection={selection}
+      />
+      <ReadyView screenType={screenType} onPressReady={onPressReady} />
+    </Container>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -297,5 +302,10 @@ const styles = StyleSheet.create({
     borderColor: "green",
     borderWidth: 2,
     boxShadow: "0 0 5px green",
+  },
+  ready: {
+    margin: 5,
+    fontSize: 26,
+    alignSelf: "center",
   },
 });
