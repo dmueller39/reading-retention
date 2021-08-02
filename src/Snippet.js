@@ -27,6 +27,9 @@ export type Props = {|
   snippet: ReadingRetentionSnippet,
 |};
 
+// TODO create a TRANSITION state between reading + entry which covers the words, but doesn't
+// show the options or highlight
+
 // user should be reading
 const READING_SCREEN_TYPE = 1;
 // text is transition from visible to not visible
@@ -37,6 +40,11 @@ const ENTRY_SCREEN_TYPE = 3;
 const ANSWER_SCREEN_TYPE = 4;
 
 type ScreenType = 1 | 2 | 3 | 4;
+
+type State = {
+  screenType: ScreenType,
+  selection: ?string,
+};
 
 const FRAME_DURATION = 100;
 
@@ -196,14 +204,12 @@ export default function Level(props: Props) {
     (READING_SCREEN_TYPE: ScreenType)
   );
   const [selection, setSelection] = useState((null: ?string));
-  const [highlightIndex, setHighlightIndex] = useState((null: ?number));
 
   const timeoutRef = useRef((null: ?TimeoutID));
 
   useEffect(() => {
     setScreenType(READING_SCREEN_TYPE);
     setSelection(null);
-    setHighlightIndex(null);
     return () => {
       if (timeoutRef.current != null) {
         clearTimeout(timeoutRef.current);
@@ -213,6 +219,7 @@ export default function Level(props: Props) {
   }, [props.snippet]);
 
   const onTimeout = () => {
+    setScreenType(READING_SCREEN_TYPE);
     props.onComplete(selection == props.snippet.check.word);
   };
 
@@ -228,20 +235,24 @@ export default function Level(props: Props) {
     timeoutRef.current = setTimeout(() => {
       setScreenType(ENTRY_SCREEN_TYPE);
     }, 2000);
-    setHighlightIndex(props.snippet.check.index);
     setScreenType(ENTRY_TRANSITION_SCREEN_TYPE);
   };
 
   const check = props.snippet.check;
   const texts = props.snippet.words.map((word, i) => {
     const highlight =
-      check.index == highlightIndex && i == check.index ? (
+      screenType != READING_SCREEN_TYPE && i == check.index ? (
         <Highlight
           enabled={
             screenType == ENTRY_SCREEN_TYPE || screenType == ANSWER_SCREEN_TYPE
           }
         />
       ) : null;
+    if (i == check.index) {
+      console.log(check.index);
+      console.log(screenType);
+      console.log(highlight);
+    }
     return (
       <View key={i} style={styles.textContainer}>
         <Text style={styles.word}>{word}</Text>
