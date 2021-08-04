@@ -29,7 +29,7 @@ export default function LabelButton({
   style?: any,
 }) {
   if (disabled) {
-    return <Text style={styles.disabled}>{label}</Text>;
+    return <Text style={[style, styles.disabled]}>{label}</Text>;
   }
   return (
     <Text style={[style, getStyle(type)]} onPress={onPress}>

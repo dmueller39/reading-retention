@@ -15,7 +15,7 @@ import LabelButton from "./common/LabelButton";
 import Container from "./common/Container";
 
 export type Props = {|
-  options: Array<{ getGamePlan: () => ReadingRetentionGame, name: string }>,
+  options: Array<{ getGamePlan: ?() => ReadingRetentionGame, name: string }>,
   setGame: (ReadingRetentionGame) => void,
 |};
 
@@ -42,11 +42,14 @@ export default function Menu({ setGame, options }: Props) {
   }
 
   const buttons = options.map(({ getGamePlan, name }) => {
+    const onPress =
+      getGamePlan == null ? () => {} : () => setGame(getGamePlan());
     return (
       <LabelButton
         key={name}
         label={name}
-        onPress={() => setGame(getGamePlan())}
+        disabled={getGamePlan == null}
+        onPress={onPress}
         type="positive"
         style={styles.labelButton}
       />

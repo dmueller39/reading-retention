@@ -7,17 +7,21 @@ export type ReadingRetentionCheck = {
 };
 
 export type ReadingRetentionSnippet = {
-  // should these be constant per game?
   frameDuration: number,
   visibleHalfLength: number,
   words: Array<string>,
   check: ReadingRetentionCheck,
+  snippetIndex: number,
 };
 
 export type ReadingRetentionGame = {
   snippets: Array<ReadingRetentionSnippet>,
+  id: string,
 };
 
 export type GameResult = {
   mistakes: number,
+  id: string,
+  lastIndex: number,
+  timestamp: number,
 };

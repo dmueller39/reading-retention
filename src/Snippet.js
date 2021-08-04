@@ -248,11 +248,6 @@ export default function Level(props: Props) {
           }
         />
       ) : null;
-    if (i == check.index) {
-      console.log(check.index);
-      console.log(screenType);
-      console.log(highlight);
-    }
     return (
       <View key={i} style={styles.textContainer}>
         <Text style={styles.word}>{word}</Text>

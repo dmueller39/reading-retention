@@ -13,10 +13,6 @@ export type Props = {|
   game: ReadingRetentionGame,
 |};
 
-type State = {
-  snippetIndex: number,
-};
-
 export default function Level(props: Props) {
   const [snippetIndex, setSnippetIndex] = useState(0);
   const [mistakes, setMistakes] = useState(0);
@@ -27,6 +23,9 @@ export default function Level(props: Props) {
     if (snippetIndex + 1 >= props.game.snippets.length) {
       props.onComplete({
         mistakes: updatedMistakes,
+        id: props.game.id,
+        lastIndex: props.game.snippets[snippetIndex].snippetIndex,
+        timestamp: Date.now(),
       });
     } else {
       setSnippetIndex(snippetIndex + 1);
