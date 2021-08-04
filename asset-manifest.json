@@ -1,0 +1,22 @@
+{
+  "files": {
+    "app.js": "/reading-retention/static/js/app.d2300f3d.chunk.js",
+    "app.js.map": "/reading-retention/static/js/app.d2300f3d.chunk.js.map",
+    "runtime~app.js": "/reading-retention/static/js/runtime~app.d340ff9c.js",
+    "runtime~app.js.map": "/reading-retention/static/js/runtime~app.d340ff9c.js.map",
+    "static/js/2.79f55b94.chunk.js": "/reading-retention/static/js/2.79f55b94.chunk.js",
+    "static/js/2.79f55b94.chunk.js.map": "/reading-retention/static/js/2.79f55b94.chunk.js.map",
+    "favicon-16.png": "/reading-retention/favicon-16.png",
+    "favicon-32.png": "/reading-retention/favicon-32.png",
+    "favicon.ico": "/reading-retention/favicon.ico",
+    "index.html": "/reading-retention/index.html",
+    "manifest.json": "/reading-retention/manifest.json",
+    "serve.json": "/reading-retention/serve.json",
+    "static/js/2.79f55b94.chunk.js.LICENSE.txt": "/reading-retention/static/js/2.79f55b94.chunk.js.LICENSE.txt"
+  },
+  "entrypoints": [
+    "static/js/runtime~app.d340ff9c.js",
+    "static/js/2.79f55b94.chunk.js",
+    "static/js/app.d2300f3d.chunk.js"
+  ]
+}
