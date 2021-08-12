@@ -22,6 +22,16 @@ function parseArray<T>(input: string): T[] {
   return [];
 }
 
+function safeParse<T>(input: string): ?T {
+  try {
+    return JSON.parse(input);
+  } catch (e) {
+    console.error(e);
+    console.error(input);
+  }
+  return null;
+}
+
 function getIsInIframe() {
   try {
     return window.self !== window.top;
@@ -57,7 +67,9 @@ export default function PersistenceWrapper<T>(
               if (e.data.startsWith(window.location.href + ";data;")) {
                 // extract the data string
                 const res = e.data.split(";").slice(2);
-                const parsed: Array<T> = parseArray(res[0]);
+                const parsed: Array<T> = res
+                  .map(safeParse)
+                  .filter((item) => item != null);
                 setData(parsed);
               }
             }
@@ -66,13 +78,16 @@ export default function PersistenceWrapper<T>(
         }
       : () => {};
 
-    const onComplete = (item) => {
+    const onComplete = (item: T) => {
       const updated = [...data, item];
       if (IS_IN_IFRAME) {
-        window.top.postMessage(
-          window.location.href + ";complete;" + JSON.stringify(updated),
-          "*"
-        );
+        const dataString = JSON.stringify(item);
+        if (dataString != null) {
+          window.top.postMessage(
+            window.location.href + ";complete;" + dataString,
+            "*"
+          );
+        }
       } else {
         AsyncStorage.setItem("data", JSON.stringify(updated));
       }
